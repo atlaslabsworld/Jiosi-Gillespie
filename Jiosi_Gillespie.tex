@@ -1,0 +1,125 @@
+\documentclass[12pt]{paperFormatting}
+
+\title{Jiosi-Gillespie CTMDP Rollout Construction \\\& Jiosi-Gillespie SSA Trajectory Generation \\for Continuous-Time \\Reinforcement Learning \& Inference}
+\author{Jordan Jiosi}
+\copyrightyear{2025}
+\doclevel{Master's Thesis}
+\department{Computer Science}
+\school{College of Science and Mathematics}
+\degree{M.S.}
+\dateofdefense{May 2025}
+
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\TauSet}{\mathcal{T}}
+\providecommand{\algorithmautorefname}{Algorithm}
+\graphicspath{{figures/}}
+
+\begin{document}
+
+\begin{frontmatter}
+\makeTitlePage
+
+\begin{abstract}
+\noindent We formalize a continuous-time reinforcement learning and inverse reinforcement learning stack that uses stochastic simulation algorithm dynamics to generate event-timed trajectories. The Jiosi-Gillespie CTMDP Rollout Construction treats Gillespie sampling as an environment stepper mapping $(s,a)$ to $(s^{+},r,\tau)$ with an explicit event label, while Jiosi-Gillespie SSA Trajectory Generation produces full jump sequences suitable for likelihood-based inference. The framework supports event-driven or piecewise-constant control, preserves standard policy evaluation and improvement logic, and admits likelihoods over timestamped demonstrations. A scheduling toy problem is reformulated from discrete to continuous time, and a concrete SSA step is shown numerically. Discounting can be applied through exponential factors or reward folding, making the method compatible with standard RL objectives while retaining exact continuous-time semantics.
+\end{abstract}
+\end{frontmatter}
+
+\begin{thesisbody}
+
+\section{Introduction}
+Discrete-state systems often evolve with irregular event timing, yet most reinforcement learning (RL) rollouts assume a fixed time step. That assumption blurs the impact of dwell times on rewards and on inverse reinforcement learning (IRL) likelihoods. We present the Jiosi-Gillespie CTMDP Rollout Construction and Jiosi-Gillespie SSA Trajectory Generation, two contracts that embed Gillespie's stochastic simulation algorithm (SSA) into a continuous-time Markov decision process (CTMDP) compatible with modern RL and IRL. The resulting trajectories retain event times, enabling value estimation, discounting, and likelihoods without time discretization. Our contributions are: (i) a precise CTMDP stepper built on SSA rates; (ii) RL and IRL interfaces that operate on jump trajectories; and (iii) a continuous-time reformulation of a scheduling toy example inspired by~\cite{jiosiMSthesis2025}.
+
+\section{Continuous-Time Decision Processes and Trajectories}
+Consider a CTMDP with state space $\mathcal{S}$, action set $\mathcal{A}$, event types $\Sigma$, and policy $\pi_{\theta}(a\vert s)$. For each event type $\sigma\in\Sigma$ and state-action pair $(s,a)$, the instantaneous rate is $\lambda_{\sigma}(s,a)$. The total rate is
+\begin{equation}
+    \Lambda(s,a) \doteq \sum_{\sigma\in\Sigma} \lambda_{\sigma}(s,a),
+\end{equation}
+and the event probability mass function is $p(\sigma\mid s,a) \doteq \lambda_{\sigma}(s,a)/\Lambda(s,a)$. Holding times satisfy $\tau_t \sim \mathrm{Exp}(\Lambda(s_t,a_t))$. A trajectory collects jump tuples
+\begin{equation}
+    \tau = \bigl\{(s_t,a_t,\tau_t,\sigma_t,s_{t+1})\bigr\}_{t=0}^{T-1},
+\end{equation}
+where $s_{t+1}$ is drawn from the transition kernel conditioned on $(s_t,a_t,\sigma_t)$. A discounted return can be written as
+\begin{equation}
+    F(\tau) = \sum_{t=0}^{T-1} \exp\!\left(-\beta \sum_{j=0}^{t} \tau_j\right) r(s_t,a_t,\sigma_t),
+\end{equation}
+with rate-based discount $\beta\ge 0$. The objective is $\EX_{\tau\vert\pi_{\theta}}[F(\tau)]$; value functions similarly use state-action marginals such as $\EX_{s,a\vert\pi_{\theta}}[f(s,a)]$ without time discretization. This notation aligns with classical CTMDP treatments such as~\cite{guo2009ctmdp}.
+
+\section{Jiosi-Gillespie CTMDP Rollout Construction}
+Each SSA step instantiates an environment transition. Given $(s_t,a_t)$:
+\begin{align}
+    \Lambda(s_t,a_t) &= \sum_{\sigma\in\Sigma} \lambda_{\sigma}(s_t,a_t),\\
+    \tau_t &\sim \mathrm{Exp}(\Lambda(s_t,a_t)),\\
+    \sigma_t &\sim p(\sigma\mid s_t,a_t),\\
+    s_{t+1} &\sim P(\cdot\mid s_t,a_t,\sigma_t).
+\end{align}
+The stepper contract is
+\begin{equation}
+    (s_{t+1}, r_t, \tau_t, \sigma_t) = \mathrm{Step}(s_t,a_t),
+\end{equation}
+where $r_t = r(s_t,a_t,\sigma_t)$ and $\mathrm{Step}$ is simulated via SSA sampling. This construction retains $(\tau_t,\sigma_t)$ alongside $(s_t,a_t)$, enabling downstream RL to remain agnostic to the timing model while still obtaining time-aware returns. Piecewise-constant control holds $a_t$ fixed over the sampled holding time; event-driven control updates $a_t$ immediately after each jump.
+
+\section{Jiosi-Gillespie SSA Trajectory Generation}
+Gillespie sampling~\cite{gillespie1976,gillespie1977} draws holding times and event types from two uniform random variables $u_1,u_2\sim\mathrm{Unif}(0,1)$:
+\begin{align}
+    \tau_t &= -\frac{1}{\Lambda(s_t,a_t)} \ln(u_1),\\
+    \sigma_t &= \min\Bigl\{\sigma\in\Sigma: \sum_{\sigma' \preceq \sigma} p(\sigma'\mid s_t,a_t) \ge u_2\Bigr\}.
+\end{align}
+Algorithm~\ref{alg:ssa} generates a rollout episode. Discounting can be applied multiplicatively through $\exp(-\beta \tau_t)$ or folded into the reward as $\tilde{r}_t = \exp(-\beta \tau_t) r(s_t,a_t,\sigma_t)$; both choices keep policy evaluation unchanged while preserving continuous-time semantics.
+
+\begin{algorithm}[t]
+\caption{Jiosi-Gillespie SSA Trajectory Generation}
+\label{alg:ssa}
+\begin{algorithmic}[1]
+\STATE Input: policy $\pi_{\theta}$, horizon $T$, discount $\beta$, initial state $s_0$
+\STATE Initialize $G\leftarrow 0$, cumulative time $c\leftarrow 0$
+\FOR{$t=0$ to $T-1$}
+    \STATE Sample $a_t \sim \pi_{\theta}(a\vert s_t)$
+    \STATE Compute $\Lambda(s_t,a_t)$ and $p(\sigma\mid s_t,a_t)$
+    \STATE Draw $u_1,u_2\sim\mathrm{Unif}(0,1)$
+    \STATE Set $\tau_t = -\ln(u_1)/\Lambda(s_t,a_t)$ and update $c \leftarrow c + \tau_t$
+    \STATE Sample $\sigma_t$ using $u_2$ and the cumulative mass of $p(\sigma\mid s_t,a_t)$
+    \STATE Evaluate $r_t = r(s_t,a_t,\sigma_t)$
+    \STATE Accumulate $G \leftarrow G + \exp(-\beta c)\, r_t$
+    \STATE Sample $s_{t+1}\sim P(\cdot\mid s_t,a_t,\sigma_t)$
+\ENDFOR
+\STATE Return trajectory $\{(s_t,a_t,\tau_t,\sigma_t,s_{t+1})\}_{t=0}^{T-1}$ and return $G$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Reinforcement Learning Interface}
+The CTMDP value of policy $\pi_{\theta}$ is $J(\theta) = \EX_{\tau\vert\pi_{\theta}}[F(\tau)]$. Event-driven control selects $a_t$ after each jump; piecewise-constant control commits to $a_t$ over $(t,t+\tau_t)$. Both styles share the same return definition, so policy evaluation and improvement operators remain structurally identical to discrete-time RL~\cite{suttonbarto}. For policy gradients,
+\begin{equation}
+    \nabla_{\theta} J(\theta) = \EX_{\tau\vert\pi_{\theta}}\!\left[\sum_{t=0}^{T-1} \nabla_{\theta} \log \pi_{\theta}(a_t\vert s_t)\, \hat{A}_t\right],
+\end{equation}
+where $\hat{A}_t$ may incorporate holding-time-aware baselines such as $\hat{A}_t = \exp(-\beta \tau_t) \hat{Q}(s_t,a_t) - b(s_t)$. Standard critics and actor updates can therefore consume SSA rollouts without altering optimizer structure.
+
+\section{Inverse Reinforcement Learning Interface}
+Expert demonstrations are timestamped jump trajectories $\mathcal{D} = \{\tau^{(n)}\}_{n=1}^{N}$ with $\tau^{(n)} = \{(\tau_t^{(n)},\sigma_t^{(n)},s_t^{(n)},a_t^{(n)})\}$. The joint density for one step under parameters $\theta$ is $\lambda_{\sigma_t}(s_t,a_t) \exp(-\Lambda(s_t,a_t)\tau_t) \pi_{\theta}(a_t\vert s_t)$. The trajectory log-likelihood is
+\begin{equation}
+    \log p(\tau\vert\theta) = \sum_{t=0}^{T-1} \bigl[\log \lambda_{\sigma_t}(s_t,a_t) - \Lambda(s_t,a_t)\tau_t + \log \pi_{\theta}(a_t\vert s_t)\bigr],
+\end{equation}
+and IRL adapts either reward parameters (affecting $\lambda_{\sigma}$ or $r$) or policy parameters so that $\EX_{\tau\vert\pi_{\theta}}[F(\tau)]$ aligns with expert likelihood~\cite{ziebart2008maxent}. Reward recovery constrains $\lambda_{\sigma}$ through optimality conditions; policy recovery directly maximizes the likelihood above, keeping the SSA dynamics fixed.
+
+\section{Continuous-Time Reformulation of a Scheduling Toy Example}
+The discrete scheduling chart in Figure~\ref{fig:toy} allocates two jobs: an electric vehicle (EV) charge and a standby (SB) task, each with unit work across a three-slot horizon and a deadline at $t=3$. In continuous time, the state records remaining work $(w^{\mathrm{EV}}, w^{\mathrm{SB}})$, the elapsed time $c$, and the deadline indicator. Event types are $\Sigma = \{\text{serve-EV}, \text{serve-SB}\}$ with rates $\lambda_{\mathrm{EV}}(s,a)$ and $\lambda_{\mathrm{SB}}(s,a)$ chosen by action $a\in\{\text{EV-first}, \text{SB-first}, \text{split}\}$. For action $\text{EV-first}$, set $\lambda_{\mathrm{EV}}=1.5$, $\lambda_{\mathrm{SB}}=0.5$, giving $\Lambda=2.0$ and $p(\text{EV}\mid s,a)=0.75$. The holding time is $\tau_t \sim \mathrm{Exp}(2.0)$.
+
+A worked SSA step: suppose $w^{\mathrm{EV}}=1$, $w^{\mathrm{SB}}=1$, deadline at $c=0$, and $a_t=\text{EV-first}$. Draw $u_1=0.25$, $u_2=0.60$. Then $\tau_t=-\ln(0.25)/2.0\approx 0.69$, $\sigma_t=\text{serve-EV}$ because $u_2 < 0.75$, and the state updates to $w^{\mathrm{EV}} \leftarrow 0$. The reward can encode on-time completion, e.g., $r_t=1$ if $c+\tau_t<3$ and $w^{\mathrm{EV}}$ hits zero, else $-1$. Subsequent steps continue with updated rates; the SSA keeps exact timing while preserving the discrete action logic from the original schedule.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{toyExample1.png}
+\caption{Discrete scheduling illustration adapted from~\cite{jiosiMSthesis2025}. SSA rollouts reuse the same prioritization logic but sample holding times and event order continuously.}
+    \label{fig:toy}
+\end{figure}
+
+\section{Discussion and Limitations}
+SSA-based rollouts assume memoryless holding times and well-specified rate functions; systems with strong duration dependence may violate these assumptions. Identifiability in IRL is challenging when both rates and rewards are unknown: multiple $(\lambda_{\sigma}, r)$ pairs can induce the same likelihood over $\{(\tau_k,\sigma_k,s_k)\}$. Regularization, structural constraints on $\lambda_{\sigma}$, or anchoring to known physics can mitigate ambiguity. Finally, long holding times can create high-variance returns; control variates based on $\EX_{s,a\vert\pi_{\theta}}[\Lambda(s,a)]$ help stabilize estimates.
+
+\section{Conclusion}
+The Jiosi-Gillespie CTMDP Rollout Construction and Jiosi-Gillespie SSA Trajectory Generation supply event-timed trajectories that keep RL and IRL objectives intact while avoiding time discretization. By treating SSA as the environment stepper, policies remain compatible with event-driven and piecewise-constant control, and likelihoods over timestamped demonstrations become straightforward. The continuous-time reformulation of the scheduling toy example illustrates how discrete action logic transfers directly to SSA rollouts, enabling precise reward attribution and inference.
+
+\buildBibliography
+\end{thesisbody}
+
+\end{document}

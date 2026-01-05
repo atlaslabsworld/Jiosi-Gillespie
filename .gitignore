@@ -1,0 +1,39 @@
+# Core LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.run.xml
+*.bcf
+*.blg
+*.bbl
+*.synctex(busy)
+
+# Latexmk
+.latexmkrc
+latexmk.out
+
+# Intermediate and temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# PDF output (comment this out if you version PDFs)
+# *.pdf
+
+# OS/editor noise
+.DS_Store
+.vscode/
+.idea/
+
+# Error/temp artifacts
+*-SAVE-ERROR
+*-ERROR
