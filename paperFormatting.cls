@@ -190,7 +190,9 @@
 \begin{center}
 \begin{singlespacing}
 
-    \copyright \ \@copyrightyear \ \@author
+     \copyright \ \@copyrightyear \ \@author \\
+     \textit{Preprint DOI:} \url{https://doi.org/10.5281/zenodo.18156656}
+    %  \footnotetext{Preprint DOI: \url{https://doi.org/10.5281/zenodo.18156656}}
 
 \end{singlespacing}
 \end{center}
