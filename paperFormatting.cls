@@ -136,6 +136,7 @@
     \setlength{\parindent}{0.5in} % set chapter indent size
     \setcounter{page}{1} % set the page number to 1
     \setcounter{secnumdepth}{4}
+    \renewcommand{\thesection}{\arabic{section}.}
     
     % Change header formats
     \titleformat{\chapter}[display]{\normalfont\bfseries\filcenter}{\chaptertitlename\ \thechapter}{0pt}{##1} 

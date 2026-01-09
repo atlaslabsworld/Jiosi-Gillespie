@@ -95,9 +95,15 @@ The CTMDP value of policy $\pi_{\theta}$ is $J(\theta) = \EX_{\tau\vert\pi_{\the
 where $\hat{A}_t$ may incorporate holding-time-aware baselines such as $\hat{A}_t = \exp(-\beta \tau_t) \hat{Q}(s_t,a_t) - b(s_t)$. Standard critics and actor updates can therefore consume SSA rollouts without altering optimizer structure.
 
 \section{Inverse Reinforcement Learning Interface}
-Expert demonstrations are timestamped jump trajectories $\mathcal{D} = \{\tau^{(n)}\}_{n=1}^{N}$ with $\tau^{(n)} = \{(\tau_t^{(n)},\sigma_t^{(n)},s_t^{(n)},a_t^{(n)})\}$. The joint density for one step under parameters $\theta$ is $\lambda_{\sigma_t}(s_t,a_t) \exp(-\Lambda(s_t,a_t)\tau_t) \pi_{\theta}(a_t\vert s_t)$. The trajectory log-likelihood is
+Expert demonstrations are timestamped jump trajectories $\mathcal{D} = \{\tau^{(n)}\}_{n=1}^{N}$ with $\tau^{(n)} = \{(\tau_t^{(n)},\sigma_t^{(n)},s_t^{(n)},a_t^{(n)})\}$. The joint density for one step under parameters $\theta$ is $\lambda_{\sigma_t}(s_t,a_t)\allowbreak \exp(-\Lambda(s_t,a_t)\tau_t)\allowbreak \pi_{\theta}(a_t\vert s_t)$. The trajectory log-likelihood is
 \begin{equation}
-    \log p(\tau\vert\theta) = \sum_{t=0}^{T-1} \bigl[\log \lambda_{\sigma_t}(s_t,a_t) - \Lambda(s_t,a_t)\tau_t + \log \pi_{\theta}(a_t\vert s_t)\bigr],
+    \begin{aligned}
+        \log p(\tau\vert\theta) = \sum_{t=0}^{T-1} \Bigl[
+            &\log \lambda_{\sigma_t}(s_t,a_t)
+            - \Lambda(s_t,a_t)\tau_t \\
+            &+ \log \pi_{\theta}(a_t\vert s_t)
+        \Bigr],
+    \end{aligned}
 \end{equation}
 and IRL adapts either reward parameters (affecting $\lambda_{\sigma}$ or $r$) or policy parameters so that $\EX_{\tau\vert\pi_{\theta}}[F(\tau)]$ aligns with expert likelihood~\cite{ziebart2008maxent}. Reward recovery constrains $\lambda_{\sigma}$ through optimality conditions; policy recovery directly maximizes the likelihood above, keeping the SSA dynamics fixed.
 
