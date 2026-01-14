@@ -43,7 +43,7 @@ where $s_{t+1}$ is drawn from the transition kernel conditioned on $(s_t,a_t,\si
 \begin{equation}
     F(\tau) = \sum_{t=0}^{T-1} \exp\!\left(-\beta \sum_{j=0}^{t} \tau_j\right) r(s_t,a_t,\sigma_t),
 \end{equation}
-with rate-based discount $\beta\ge 0$. The objective is $\EX_{\tau\vert\pi_{\theta}}[F(\tau)]$; value functions similarly use state-action marginals such as $\EX_{s,a\vert\pi_{\theta}}[f(s,a)]$ without time discretization. This notation aligns with classical CTMDP treatments such as~\cite{guo2009ctmdp}.
+with rate-based discount $\beta\ge 0$. The objective is $\EX_{\tau\vert\pi_{\theta}}[F(\tau)]$; value functions similarly use state-action marginals such as $\EX_{s,a\vert\pi_{\theta}}[f(s,a)]$ without time discretization. This notation aligns with classical CTMDP treatments such as~\cite{guo2009ctmdp,  youtube_LMU_Frey_2025_Gillespie}.
 
 \section{Jiosi-Gillespie CTMDP Rollout Construction}
 Each SSA step instantiates an environment transition. Given $(s_t,a_t)$:
